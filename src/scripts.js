@@ -69,10 +69,34 @@ class Particle {
 const sketch = p5 => {
     const particle = new Particle(0, 0, p5);
 
-    const walker = new RandomWalker(400, 400, p5);
+    //const walker = new RandomWalker(400, 400, p5);
+
+    const generate5Walkers = () => {
+        for (i = 0; i < 5; i++) {
+            walker = new RandomWalker(p5.random([-100, 100]), p5.random([-100, 100]), p5);
+            walkers.push(walker);
+        }
+    }
+
+    let walkers = [];
+    let walker = null;
+
+    p5.mousePressed = () => {
+        if (walkers.length < 20) {
+            walker = new RandomWalker(p5.mouseX, p5.mouseY, p5);
+            walkers.push(walker)
+            console.log(walkers.length)
+        }
+
+        if (walkers.length < 5)
+            generate5Walkers();
+    }
 
     p5.setup = () => {
         p5.createCanvas(window.innerWidth, window.innerHeight);
+
+        if (walkers.length < 5)
+            generate5Walkers();
     };
 
     p5.draw = () => {
@@ -84,8 +108,10 @@ const sketch = p5 => {
         particle.draw();
         particle.update();
 
-        walker.draw();
-        walker.update();
+        walkers.forEach(w => {
+            w.draw();
+            w.update();
+        })
     };
 };
 
