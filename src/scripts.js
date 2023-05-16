@@ -1,161 +1,143 @@
 import P5 from 'p5';
 
-class RandomWalker {
+const MAX_STEP_HISTORY = 15;
+const MAX_STEP_SIZE = 10;
+const MAX_WALKERS_COUNT = 20;
+const INIT_WALKERS_COUNT = 10;
+
+class RandomOrganism {
     constructor(x, y, p5) {
         this.position = p5.createVector(x, y);
-
-        this.maxStepHistory = 10;
-        this.stepHistory = [];
-        this.maxStep = 15;
-
-        this.stepCount = 0;
-        this.level = 1;
-        this.isAlive = true;
-
+        this.color = p5.createVector(p5.random(255), p5.random(255), p5.random(255));
         this.p5 = p5;
-    }
-
-    draw() {
-        this.stepHistory.forEach((step, index) => {
-            this.p5.fill(255);
-            this.p5.ellipse(step.x, step.y, index, index);
-        });
-    }
-
-    update() {
-        const newX = this.position.x + this.p5.random(-15, 15);
-        const newY = this.position.y + this.p5.random(-15, 15);
-
-        if (newX > 0 && newX < this.p5.windowWidth) {
-            this.position.x = newX;
-        }
-
-        if (newY > 0 && newY < this.p5.windowHeight) {
-            this.position.y = newY;
-        }
-
-        if (this.stepHistory.length >= this.maxStepHistory) {
-            this.stepHistory.shift();
-        }
-
-        this.stepHistory.push({ x: this.position.x, y: this.position.y });
-
-        this.maxStep += 1;
-
-        this.stepCount += 1;
-        if (this.stepCount % 10 === 0) {
-            this.level += 1;
-        }
-    }
-
-    absorb(walker) {
-        this.level += walker.level;
-        walker.die();
-
-        const additionalSteps = this.maxStepHistory - this.stepHistory.length;
-
-        for (let i = 0; i < additionalSteps; i++) {
-            const randomX = this.position.x + this.p5.random(-this.maxStep, this.maxStep);
-            const randomY = this.position.y + this.p5.random(-this.maxStep, this.maxStep);
-
-            this.stepHistory.unshift({ x: randomX, y: randomY });
-        }
+        this.maxStepHistory = MAX_STEP_HISTORY;
+        this.level = 1;
+        this.maxStep = MAX_STEP_SIZE;
+        this.stepHistory = [];
+        this.stepCount = 0;
+        this.isAlive = true;
     }
 
     die() {
         this.isAlive = false;
     }
 
-    scan(walkers) {
-        walkers.forEach((walker) => {
-            if (!walker.isAlive) {
+    update() {
+        this.checkBoundaries();
+
+        this.stepHistory.push(this.p5.createVector(this.position.x, this.position.y));
+
+        this.position.x += this.p5.random(-this.maxStep, this.maxStep);
+        this.position.y += this.p5.random(-this.maxStep, this.maxStep);
+
+        this.stepCount++;
+
+        if (this.stepCount % 10 === 0) {
+            this.levelUp();
+        }
+
+        if (this.stepHistory.length > this.maxStepHistory) {
+            this.stepHistory.splice(0, 1);
+        }
+    }
+
+    levelUp() {
+        this.level++;
+        this.maxStepHistory++;
+    }
+
+    scan(walkers, myIndex) {
+        console.log('walkers', walkers);
+        console.log('walkers', myIndex);
+
+        walkers.forEach((walker, index) => {
+            if (myIndex === index) {
+                console.log('this is me');
                 return;
             }
 
-            const distance = this.p5.dist(this.position.x, this.position.y, walker.position.x, walker.position.y);
-
-            if (distance < 10 && this.level > walker.level) {
-                this.absorb(walker);
+            if (!walker.isAlive) {
+                console.log('dead');
+                return;
             }
 
-            walkers = walkers.filter((walker) => walker.isAlive);
+            console.log('dist', this.position.dist(walker.position));
+
+            if (this.position.dist(walker.position) < 10) {
+                this.absorb(walker);
+                walker.die();
+            }
         });
     }
-}
 
+    absorb(walker) {
+        this.level += walker.level;
+        this.maxStepHistory += walker.level;
 
-class Particle {
-    constructor(x, y, p5) {
-        this.position = p5.createVector(x, y);
-        this.direction = p5.createVector(3, 3);
-
-        this.p5 = p5;
+        for (let i; i <= walker.level; i++) {
+            this.stepHistory.push(
+                this.p5.createVector(
+                    this.p5.random(-this.position.x - 15, this.position.x + 15),
+                    this.p5.random(-this.position.y - 15, this.position.y + 15),
+                ),
+            );
+        }
     }
 
     draw() {
-        this.p5.point(this.position.x, this.position.y);
+        this.p5.stroke(1);
+        this.p5.fill(this.color.x, this.color.y, this.color.z);
+        this.p5.ellipse(this.position.x, this.position.y, 20, 20);
+
+        this.stepHistory.forEach((step, index) => {
+            this.p5.ellipse(step.x, step.y, index > 20 ? 20 : index);
+        });
     }
 
-    update() {
-        if (this.position.y > this.p5.height || this.position.y < 0) {
-            this.direction.y *= -1;
+    checkBoundaries() {
+        if (this.position.y > this.p5.height) {
+            this.position.y = 0;
         }
-
-        if (this.position.x > this.p5.width || this.position.x < 0) {
-            this.direction.x *= -1;
+        if (this.position.y < 0) {
+            this.position.y = this.p5.height;
         }
-
-        this.position.add(this.direction);
+        if (this.position.x > this.p5.width) {
+            this.position.x = 0;
+        }
+        if (this.position.x < 0) {
+            this.position.x = this.p5.width;
+        }
     }
 }
 
 const sketch = p5 => {
-    const particle = new Particle(0, 0, p5);
-
-    //const walker = new RandomWalker(400, 400, p5);
-
-    const generate5Walkers = () => {
-        for (i = 0; i < 5; i++) {
-            walker = new RandomWalker(p5.random([-100, 100]), p5.random([-100, 100]), p5);
-            walkers.push(walker);
-        }
-    }
-
     let walkers = [];
-    let walker = null;
 
-    p5.mousePressed = () => {
-        if (walkers.length < 20) {
-            walker = new RandomWalker(p5.mouseX, p5.mouseY, p5);
-            walkers.push(walker)
-            console.log(walkers.length)
-        }
-
-        if (walkers.length < 5)
-            generate5Walkers();
+    for (let i = 0; i < INIT_WALKERS_COUNT; i++) {
+        walkers.push(new RandomOrganism(p5.random(100, 800), p5.random(100, 800), p5));
     }
 
     p5.setup = () => {
         p5.createCanvas(window.innerWidth, window.innerHeight);
-
-        if (walkers.length < 5)
-            generate5Walkers();
+        p5.background(51);
     };
 
     p5.draw = () => {
         p5.background(51);
 
-        p5.stroke(255);
-        p5.strokeWeight(10);
+        walkers.forEach((walker, index) => {
+            walker.draw();
+            walker.update();
+            walker.scan(walkers, index);
+        });
 
-        particle.draw();
-        particle.update();
+        walkers = walkers.filter(walker => walker.isAlive);
+    };
 
-        walkers.forEach(w => {
-            w.draw();
-            w.update();
-            w.scan(walkers);
-        })
+    p5.mousePressed = () => {
+        if (walkers.length < MAX_WALKERS_COUNT) {
+            walkers.push(new RandomOrganism(p5.mouseX, p5.mouseY, p5));
+        }
     };
 };
 
