@@ -4,26 +4,42 @@ class RandomWalker {
     constructor(x, y, p5) {
         this.position = p5.createVector(x, y);
 
-        this.p5 = p5
+        this.maxStepHistory = 10;
+        this.stepHistory = [];
+        this.maxStep = 15;
+
+        this.p5 = p5;
     }
 
     draw() {
-        this.p5.point(this.position.x, this.position.y);
+        this.stepHistory.forEach((step, index) => {
+            this.p5.fill(255);
+            this.p5.ellipse(step.x, step.y, index, index);
+        })
     }
 
     update() {
-        const newX = this.position.x + this.p5.random([-1, 1]);
-        const newY = this.position.y + this.p5.random([-1, 1]);
+        const newX = this.position.x + this.p5.random(-15, 15);
+        const newY = this.position.y + this.p5.random(-15, 15);
 
-        if (newX > 0 || newX < window.innerWidth) {
+        if (newX > 0 && newX < this.p5.windowWidth) {
             this.position.x = newX;
         }
 
-        if (newY > 0 || newY < window.innerHeight) {
+        if (newY > 0 && newY < this.p5.windowHeight) {
             this.position.y = newY;
         }
+
+        if (this.stepHistory.length >= this.maxStepHistory) {
+            this.stepHistory.shift();
+        }
+
+        this.stepHistory.push({ x: this.position.x, y: this.position.y });
+
+        this.maxStep += 1;
     }
 }
+
 
 class Particle {
     constructor(x, y, p5) {
