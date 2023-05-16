@@ -8,6 +8,10 @@ class RandomWalker {
         this.stepHistory = [];
         this.maxStep = 15;
 
+        this.stepCount = 0;
+        this.level = 1;
+        this.isAlive = true;
+
         this.p5 = p5;
     }
 
@@ -15,7 +19,7 @@ class RandomWalker {
         this.stepHistory.forEach((step, index) => {
             this.p5.fill(255);
             this.p5.ellipse(step.x, step.y, index, index);
-        })
+        });
     }
 
     update() {
@@ -37,6 +41,45 @@ class RandomWalker {
         this.stepHistory.push({ x: this.position.x, y: this.position.y });
 
         this.maxStep += 1;
+
+        this.stepCount += 1;
+        if (this.stepCount % 10 === 0) {
+            this.level += 1;
+        }
+    }
+
+    absorb(walker) {
+        this.level += walker.level;
+        walker.die();
+
+        const additionalSteps = this.maxStepHistory - this.stepHistory.length;
+
+        for (let i = 0; i < additionalSteps; i++) {
+            const randomX = this.position.x + this.p5.random(-this.maxStep, this.maxStep);
+            const randomY = this.position.y + this.p5.random(-this.maxStep, this.maxStep);
+
+            this.stepHistory.unshift({ x: randomX, y: randomY });
+        }
+    }
+
+    die() {
+        this.isAlive = false;
+    }
+
+    scan(walkers) {
+        walkers.forEach((walker) => {
+            if (!walker.isAlive) {
+                return;
+            }
+
+            const distance = this.p5.dist(this.position.x, this.position.y, walker.position.x, walker.position.y);
+
+            if (distance < 10 && this.level > walker.level) {
+                this.absorb(walker);
+            }
+
+            walkers = walkers.filter((walker) => walker.isAlive);
+        });
     }
 }
 
@@ -111,6 +154,7 @@ const sketch = p5 => {
         walkers.forEach(w => {
             w.draw();
             w.update();
+            w.scan(walkers);
         })
     };
 };
